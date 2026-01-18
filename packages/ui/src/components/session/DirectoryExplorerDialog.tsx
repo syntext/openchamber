@@ -22,8 +22,10 @@ import {
 import { useDeviceInfo } from '@/lib/device';
 import { MobileOverlayPanel } from '@/components/ui/MobileOverlayPanel';
 import { DirectoryAutocomplete, type DirectoryAutocompleteHandle } from './DirectoryAutocomplete';
-
-const SHOW_HIDDEN_STORAGE_KEY = 'directoryTreeShowHidden';
+import {
+  DIRECTORY_SHOW_HIDDEN_STORAGE_KEY,
+  notifyDirectoryShowHiddenChanged,
+} from '@/lib/directoryShowHidden';
 
 interface DirectoryExplorerDialogProps {
   open: boolean;
@@ -45,7 +47,7 @@ export const DirectoryExplorerDialog: React.FC<DirectoryExplorerDialogProps> = (
       return false;
     }
     try {
-      const stored = window.localStorage.getItem(SHOW_HIDDEN_STORAGE_KEY);
+      const stored = window.localStorage.getItem(DIRECTORY_SHOW_HIDDEN_STORAGE_KEY);
       if (stored === 'true') {
         return true;
       }
@@ -98,7 +100,11 @@ export const DirectoryExplorerDialog: React.FC<DirectoryExplorerDialogProps> = (
       return;
     }
     try {
-      window.localStorage.setItem(SHOW_HIDDEN_STORAGE_KEY, showHidden ? 'true' : 'false');
+      window.localStorage.setItem(
+        DIRECTORY_SHOW_HIDDEN_STORAGE_KEY,
+        showHidden ? 'true' : 'false'
+      );
+      notifyDirectoryShowHiddenChanged();
     } catch { /* ignored */ }
   }, [showHidden]);
 
