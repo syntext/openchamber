@@ -159,27 +159,67 @@ const fuzzyMatchScoreNormalized = (normalizedQuery, candidate) => {
 };
 
 const searchFilesystemFiles = async (rootPath, options) => {
-  const { limit, query, includeHidden } = options;
+  const { limit, query, includeHidden, respectGitignore } = options;
   const includeHiddenEntries = Boolean(includeHidden);
   const normalizedQuery = query.trim().toLowerCase();
   const matchAll = normalizedQuery.length === 0;
   const queue = [rootPath];
   const visited = new Set([rootPath]);
+  const shouldRespectGitignore = respectGitignore !== false;
   // Collect more candidates for fuzzy matching, then sort and trim
   const collectLimit = matchAll ? limit : Math.max(limit * 3, 200);
   const candidates = [];
 
   while (queue.length > 0 && candidates.length < collectLimit) {
     const batch = queue.splice(0, FILE_SEARCH_MAX_CONCURRENCY);
-    const dirLists = await Promise.all(batch.map((dir) => listDirectoryEntries(dir)));
 
-    for (let index = 0; index < batch.length; index += 1) {
-      const currentDir = batch[index];
-      const dirents = dirLists[index];
+    const dirResults = await Promise.all(
+      batch.map(async (dir) => {
+        if (!shouldRespectGitignore) {
+          return { dir, dirents: await listDirectoryEntries(dir), ignoredPaths: new Set() };
+        }
 
+        try {
+          const dirents = await listDirectoryEntries(dir);
+          const pathsToCheck = dirents.map((dirent) => dirent.name).filter(Boolean);
+          if (pathsToCheck.length === 0) {
+            return { dir, dirents, ignoredPaths: new Set() };
+          }
+
+          const result = await new Promise((resolve) => {
+            const child = spawn('git', ['check-ignore', '--', ...pathsToCheck], {
+              cwd: dir,
+              stdio: ['ignore', 'pipe', 'pipe'],
+            });
+
+            let stdout = '';
+            child.stdout.on('data', (data) => { stdout += data.toString(); });
+            child.on('close', () => resolve(stdout));
+            child.on('error', () => resolve(''));
+          });
+
+          const ignoredNames = new Set(
+            String(result)
+              .split('\n')
+              .map((name) => name.trim())
+              .filter(Boolean)
+          );
+
+          return { dir, dirents, ignoredPaths: ignoredNames };
+        } catch {
+          return { dir, dirents: await listDirectoryEntries(dir), ignoredPaths: new Set() };
+        }
+      })
+    );
+
+    for (const { dir: currentDir, dirents, ignoredPaths } of dirResults) {
       for (const dirent of dirents) {
         const entryName = dirent.name;
         if (!entryName || (!includeHiddenEntries && entryName.startsWith('.'))) {
+          continue;
+        }
+
+        if (shouldRespectGitignore && ignoredPaths.has(entryName)) {
           continue;
         }
 
@@ -4333,9 +4373,10 @@ async function main(options = {}) {
       : typeof req.query.directory === 'string' && req.query.directory.trim().length > 0
         ? req.query.directory.trim()
         : os.homedir();
-    const rawQuery = typeof req.query.q === 'string' ? req.query.q : '';
-    const includeHidden = req.query.includeHidden === 'true';
-    const limitParam = typeof req.query.limit === 'string' ? Number.parseInt(req.query.limit, 10) : undefined;
+  const rawQuery = typeof req.query.q === 'string' ? req.query.q : '';
+  const includeHidden = req.query.includeHidden === 'true';
+  const respectGitignore = req.query.respectGitignore !== 'false';
+  const limitParam = typeof req.query.limit === 'string' ? Number.parseInt(req.query.limit, 10) : undefined;
     const parsedLimit = Number.isFinite(limitParam) ? Number(limitParam) : DEFAULT_FILE_SEARCH_LIMIT;
     const limit = Math.max(1, Math.min(parsedLimit, MAX_FILE_SEARCH_LIMIT));
 
@@ -4350,6 +4391,7 @@ async function main(options = {}) {
         limit,
         query: rawQuery || '',
         includeHidden,
+        respectGitignore,
       });
       res.json({
         root: resolvedRoot,

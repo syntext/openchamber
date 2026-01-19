@@ -19,15 +19,21 @@ interface FileSearchStoreState {
     directory: string,
     query: string,
     limit?: number,
-    options?: { includeHidden?: boolean }
+    options?: { includeHidden?: boolean; respectGitignore?: boolean }
   ) => Promise<ProjectFileSearchHit[]>;
   invalidateDirectory: (directory?: string | null) => void;
 }
 
-const buildCacheKey = (directory: string, query: string, limit: number, includeHidden: boolean) => {
+const buildCacheKey = (
+  directory: string,
+  query: string,
+  limit: number,
+  includeHidden: boolean,
+  respectGitignore: boolean
+) => {
   const normalizedDirectory = directory.trim();
   const normalizedQuery = query.trim().toLowerCase();
-  return `${normalizedDirectory}::${normalizedQuery}::${limit}::${includeHidden ? '1' : '0'}`;
+  return `${normalizedDirectory}::${normalizedQuery}::${limit}::${includeHidden ? '1' : '0'}::${respectGitignore ? '1' : '0'}`;
 };
 
 export const useFileSearchStore = create<FileSearchStoreState>()(
@@ -44,7 +50,8 @@ export const useFileSearchStore = create<FileSearchStoreState>()(
         const normalizedDirectory = directory.trim();
         const normalizedQuery = typeof query === 'string' ? query.trim() : '';
         const includeHidden = Boolean(options?.includeHidden);
-        const key = buildCacheKey(normalizedDirectory, normalizedQuery, limit, includeHidden);
+        const respectGitignore = options?.respectGitignore ?? true;
+        const key = buildCacheKey(normalizedDirectory, normalizedQuery, limit, includeHidden, respectGitignore);
         const now = Date.now();
         const cached = get().cache[key];
 
@@ -58,7 +65,12 @@ export const useFileSearchStore = create<FileSearchStoreState>()(
         }
 
         const searchPromise = opencodeClient
-          .searchFiles(normalizedQuery, { directory: normalizedDirectory, limit, includeHidden })
+          .searchFiles(normalizedQuery, {
+            directory: normalizedDirectory,
+            limit,
+            includeHidden,
+            respectGitignore,
+          })
           .then((files) => {
             set((state) => {
               const nextCache = { ...state.cache, [key]: { files, timestamp: Date.now() } };

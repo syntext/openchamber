@@ -323,6 +323,7 @@ export interface FileSearchQuery {
   query: string;
   maxResults?: number;
   includeHidden?: boolean;
+  respectGitignore?: boolean;
 }
 
 export interface FileSearchResult {

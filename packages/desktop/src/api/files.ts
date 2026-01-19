@@ -76,6 +76,7 @@ export const createDesktopFilesAPI = (): FilesAPI => ({
         query: payload.query,
         max_results: payload.maxResults || 100,
         include_hidden: payload.includeHidden ?? false,
+        respect_gitignore: payload.respectGitignore ?? true,
       }, {
         timeout: 15000,
         onCancel: () => {

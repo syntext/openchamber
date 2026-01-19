@@ -188,7 +188,7 @@ export const ServerFilePicker: React.FC<ServerFilePickerProps> = ({
     let cancelled = false;
     setSearching(true);
 
-    searchFiles(currentDirectory, trimmedQuery, 150)
+    searchFiles(currentDirectory, trimmedQuery, 150, { respectGitignore: true })
       .then((hits) => {
         if (cancelled) {
           return;

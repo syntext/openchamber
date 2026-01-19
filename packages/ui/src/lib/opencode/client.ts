@@ -1755,7 +1755,12 @@ class OpencodeService {
 
   async searchFiles(
     query: string,
-    options?: { directory?: string | null; limit?: number; includeHidden?: boolean }
+    options?: {
+      directory?: string | null;
+      limit?: number;
+      includeHidden?: boolean;
+      respectGitignore?: boolean;
+    }
   ): Promise<ProjectFileSearchHit[]> {
     const desktopFiles = getDesktopFilesApi();
     const directory = typeof options?.directory === 'string' && options.directory.trim().length > 0
@@ -1770,6 +1775,7 @@ class OpencodeService {
           query,
           maxResults: options?.limit,
           includeHidden: options?.includeHidden,
+          respectGitignore: options?.respectGitignore,
         });
 
         if (!Array.isArray(results)) {
@@ -1815,6 +1821,9 @@ class OpencodeService {
     }
     if (options?.includeHidden) {
       params.set('includeHidden', 'true');
+    }
+    if (options?.respectGitignore === false) {
+      params.set('respectGitignore', 'false');
     }
 
     const searchUrl = `${this.baseUrl}/fs/search${params.toString() ? `?${params.toString()}` : ''}`;
