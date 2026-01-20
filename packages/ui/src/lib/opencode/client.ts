@@ -1708,7 +1708,7 @@ class OpencodeService {
     const desktopFiles = getDesktopFilesApi();
     if (desktopFiles) {
       try {
-        const result = await desktopFiles.listDirectory(directoryPath || '');
+        const result = await desktopFiles.listDirectory(directoryPath || '', options);
         if (!result || !Array.isArray(result.entries)) {
           return [];
         }

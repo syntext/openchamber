@@ -235,7 +235,7 @@ const getFileIcon = (extension?: string): React.ReactNode => {
 export const FilesView: React.FC = () => {
   const { files, runtime } = useRuntimeAPIs();
   const { currentTheme } = useThemeSystem();
-  const syntaxTheme = React.useMemo(() => generateSyntaxTheme(currentTheme), [currentTheme]);
+  React.useMemo(() => generateSyntaxTheme(currentTheme), [currentTheme]);
   const { isMobile, screenWidth } = useDeviceInfo();
   const showHidden = useDirectoryShowHidden();
   const showGitignored = useFilesViewShowGitignored();
